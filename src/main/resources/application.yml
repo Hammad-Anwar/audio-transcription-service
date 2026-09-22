@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: audio-transcription-service
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/audio_transcription}
+    username: ${DATABASE_USERNAME:audio_user}
+    password: ${DATABASE_PASSWORD:audio_password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${AUDIO_MAX_FILE_SIZE:25MB}
+      max-request-size: ${AUDIO_MAX_FILE_SIZE:25MB}
+app:
+  storage:
+    audio-directory: ${AUDIO_STORAGE_DIRECTORY:./uploads/audio}
+    max-file-size: ${AUDIO_MAX_FILE_SIZE:25MB}
+  whisper:
+    base-url: ${LOCAL_WHISPER_URL:http://localhost:8082}
+    connect-timeout: ${LOCAL_WHISPER_CONNECT_TIMEOUT:2s}
+    read-timeout: ${LOCAL_WHISPER_READ_TIMEOUT:10m}
