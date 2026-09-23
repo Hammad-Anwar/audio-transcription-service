@@ -167,4 +167,20 @@ class AudioControllerTest {
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.error").value("FILE_TOO_LARGE"));
     }
+
+    @Test
+    void returnsMethodNotAllowedForGetOnUploadEndpoint() throws Exception {
+        mockMvc.perform(get("/api/v1/audio"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("METHOD_NOT_ALLOWED"));
+    }
+
+    @Test
+    void returnsNotFoundForUnknownEndpoint() throws Exception {
+        mockMvc.perform(get("/api/v1/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("ENDPOINT_NOT_FOUND"));
+    }
 }

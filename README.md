@@ -55,6 +55,24 @@ Run the service:
 
 The example uses application port `8081` and expects whisper.cpp on `8082`.
 
+### OpenAPI and Swagger UI
+
+With the application running, use the interactive Swagger UI at:
+
+```text
+http://localhost:8081/swagger-ui.html
+```
+
+The generated OpenAPI specification is available as JSON and YAML:
+
+```text
+http://localhost:8081/v3/api-docs
+http://localhost:8081/v3/api-docs.yaml
+```
+
+Swagger UI includes the multipart MP3 upload and all metadata, transcript, and
+timestamp lookup endpoints.
+
 ### Local whisper.cpp server
 
 Download the multilingual `base` model once:

@@ -17,12 +17,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -82,6 +84,26 @@ public class GlobalExceptionHandler {
     })
     ResponseEntity<ApiError> invalidRequest(Exception exception) {
         return error(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "The request is invalid.", null);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ApiError> methodNotAllowed(HttpRequestMethodNotSupportedException exception) {
+        return error(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "METHOD_NOT_ALLOWED",
+                "The HTTP method is not supported for this endpoint.",
+                null
+        );
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ApiError> endpointNotFound(NoResourceFoundException exception) {
+        return error(
+                HttpStatus.NOT_FOUND,
+                "ENDPOINT_NOT_FOUND",
+                "The requested endpoint does not exist.",
+                null
+        );
     }
 
     @ExceptionHandler(AudioStorageException.class)

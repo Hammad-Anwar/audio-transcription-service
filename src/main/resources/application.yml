@@ -1,3 +1,6 @@
+server:
+  port: ${SERVER_PORT:8081}
+
 spring:
   application:
     name: audio-transcription-service
@@ -35,3 +38,9 @@ app:
     base-url: ${LOCAL_WHISPER_URL:http://localhost:8082}
     connect-timeout: ${LOCAL_WHISPER_CONNECT_TIMEOUT:2s}
     read-timeout: ${LOCAL_WHISPER_READ_TIMEOUT:10m}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
