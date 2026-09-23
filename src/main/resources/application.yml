@@ -5,6 +5,18 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/audio_transcription}
     username: ${DATABASE_USERNAME:audio_user}
     password: ${DATABASE_PASSWORD:audio_password}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
+  cache:
+    type: redis
+    cache-names: audioMetadata,transcripts
+    redis:
+      time-to-live: ${REDIS_CACHE_TTL:30m}
+      cache-null-values: false
   jpa:
     open-in-view: false
     hibernate:

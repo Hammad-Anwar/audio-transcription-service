@@ -2,13 +2,14 @@ package com.example.audiotranscription;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.audiotranscription.persistence.AudioPersistenceService;
-import com.example.audiotranscription.transcription.TranscriptionService;
-import com.example.audiotranscription.transcription.whisper.WhisperTranscriptionService;
+import com.example.audiotranscription.repository.AudioFileRepository;
+import com.example.audiotranscription.repository.TranscriptSegmentRepository;
+import com.example.audiotranscription.whisper.WhisperTranscriptionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest(properties = {
         "spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
@@ -19,10 +20,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 class WhisperApplicationTest {
 
     @Autowired
-    private TranscriptionService transcriptionService;
+    private WhisperTranscriptionService transcriptionService;
 
     @MockitoBean
-    private AudioPersistenceService persistenceService;
+    private AudioFileRepository audioFiles;
+
+    @MockitoBean
+    private TranscriptSegmentRepository segments;
+
+    @MockitoBean
+    private TransactionTemplate transactions;
 
     @Test
     void localWhisperIsTheOnlyTranscriptionService() {

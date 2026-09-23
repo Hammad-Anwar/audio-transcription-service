@@ -9,6 +9,7 @@ import java.util.UUID;
 
 import com.example.audiotranscription.config.StorageProperties;
 import com.example.audiotranscription.error.InvalidAudioFileException;
+import com.example.audiotranscription.service.AudioStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

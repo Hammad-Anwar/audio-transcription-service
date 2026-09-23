@@ -2,6 +2,7 @@ package com.example.audiotranscription;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -14,13 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.example.audiotranscription.domain.TranscriptionStatus;
+import com.example.audiotranscription.model.TranscriptionStatus;
 import com.example.audiotranscription.error.TranscriptionException;
-import com.example.audiotranscription.persistence.AudioFileRepository;
-import com.example.audiotranscription.persistence.TranscriptSegmentRepository;
-import com.example.audiotranscription.transcription.TranscriptionResult;
-import com.example.audiotranscription.transcription.TranscriptionSegmentResult;
-import com.example.audiotranscription.transcription.TranscriptionService;
+import com.example.audiotranscription.repository.AudioFileRepository;
+import com.example.audiotranscription.repository.TranscriptSegmentRepository;
+import com.example.audiotranscription.whisper.WhisperResult;
+import com.example.audiotranscription.whisper.WhisperSegment;
+import com.example.audiotranscription.whisper.WhisperTranscriptionService;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.core.io.Resource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -47,11 +50,11 @@ class AudioWorkflowIntegrationTest extends PostgresIntegrationTestBase {
     @Autowired
     private AudioFileRepository audioFiles;
 
-    @Autowired
+    @MockitoSpyBean
     private TranscriptSegmentRepository segments;
 
     @MockitoBean
-    private TranscriptionService transcriptionService;
+    private WhisperTranscriptionService transcriptionService;
 
     @BeforeEach
     void clearPersistentState() throws Exception {
@@ -66,12 +69,12 @@ class AudioWorkflowIntegrationTest extends PostgresIntegrationTestBase {
 
     @Test
     void uploadsAndRetrievesTimestampedTranscript() throws Exception {
-        when(transcriptionService.transcribe(any(Resource.class))).thenReturn(new TranscriptionResult(
+        when(transcriptionService.transcribe(any(Resource.class))).thenReturn(new WhisperResult(
                 "en",
                 10_200,
                 List.of(
-                        new TranscriptionSegmentResult(0, 0, 4_800, "Hello"),
-                        new TranscriptionSegmentResult(1, 4_800, 10_200, "world")
+                        new WhisperSegment(0, 0, 4_800, "Hello"),
+                        new WhisperSegment(1, 4_800, 10_200, "world")
                 )
         ));
 
@@ -129,6 +132,30 @@ class AudioWorkflowIntegrationTest extends PostgresIntegrationTestBase {
         mockMvc.perform(get("/api/v1/audio/{id}/transcript", audioId))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("TRANSCRIPTION_FAILED"));
+    }
+
+    @Test
+    void rollsBackTranscriptCompletionAndMarksAudioFailedWhenSegmentPersistenceFails()
+            throws Exception {
+        when(transcriptionService.transcribe(any(Resource.class))).thenReturn(new WhisperResult(
+                "en",
+                1_000,
+                List.of(new WhisperSegment(0, 0, 1_000, "Hello"))
+        ));
+        doThrow(new DataIntegrityViolationException("segment write failed"))
+                .when(segments).saveAllAndFlush(any());
+
+        mockMvc.perform(multipart("/api/v1/audio")
+                        .file(new MockMultipartFile(
+                                "file", "lecture.mp3", "audio/mpeg", MP3_BYTES
+                        )))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("DATABASE_ERROR"));
+
+        UUID audioId = audioFiles.findAll().getFirst().getId();
+        assertThat(audioFiles.findById(audioId).orElseThrow().getStatus())
+                .isEqualTo(TranscriptionStatus.FAILED);
+        assertThat(segments.findByAudioFileIdOrderBySegmentIndexAsc(audioId)).isEmpty();
     }
 
     private static UUID uploadedId(MvcResult result) throws Exception {

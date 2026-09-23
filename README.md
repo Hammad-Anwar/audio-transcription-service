@@ -1,6 +1,6 @@
 # Audio Transcription Service
 
-A Spring Boot API that accepts MP3 uploads, stores the original file locally, transcribes it with a local whisper.cpp server, and saves segment-level timestamps in PostgreSQL.
+A Spring Boot API that accepts MP3 uploads, stores the original file locally, transcribes it with a local whisper.cpp server, and saves segment-level timestamps in PostgreSQL. Redis optionally caches completed metadata and transcripts.
 
 The MVP is intentionally synchronous: an upload request completes only after transcription and database persistence finish. A Whisper failure leaves the audio file in place and records a `FAILED` row so the result is observable and recoverable.
 
@@ -13,6 +13,12 @@ The request flow is:
 3. Insert an `audio_files` row with status `PROCESSING`.
 4. Ask the local Whisper server for `verbose_json` with segment timestamps.
 5. Atomically persist all `transcript_segments` and change the audio status to `COMPLETED`.
+
+The code is separated into focused `controller`, `dto`, `model`, `repository`,
+`service`, `storage`, `whisper`, `config`, and `error` packages. PostgreSQL is
+always the source of truth. Redis caches only completed audio metadata and
+completed transcripts; it never stores audio bytes, processing/failed records,
+lists, or timestamp lookup results.
 
 Flyway owns the schema. Transcript timestamp lookup uses half-open ranges (`start <= time < end`), so a timestamp exactly on a boundary selects the next segment.
 
@@ -35,10 +41,10 @@ source .env
 set +a
 ```
 
-Start PostgreSQL:
+Start PostgreSQL and Redis:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres redis
 ```
 
 Run the service:
@@ -86,6 +92,17 @@ timeout by default. Override them with `LOCAL_WHISPER_CONNECT_TIMEOUT` and
 slower machine.
 
 On startup, Flyway creates the tables, Hibernate validates the schema, and the audio storage directory is created when it is first needed.
+
+### Redis cache
+
+Redis is a disposable, fail-open cache. If it is stopped or unavailable, read
+requests continue against PostgreSQL and the cache failure is logged. Completed
+metadata uses `audioMetadata::<audioId>` keys and completed transcripts use
+`transcripts::<audioId>` keys. Both expire after 30 minutes by default.
+
+Configure it with `REDIS_HOST`, `REDIS_PORT`, and `REDIS_CACHE_TTL` (for example
+`30m` or `1h`). No Redis persistence volume is used because every cached value
+can be rebuilt from PostgreSQL.
 
 ## API
 
@@ -151,9 +168,9 @@ Run the full suite:
 ./mvnw verify
 ```
 
-Repository and workflow integration tests start an isolated PostgreSQL 17 container. Automated tests mock the Whisper boundary and do not require a running Whisper server.
+Repository and workflow integration tests start isolated PostgreSQL 17 and Redis 7 containers. Automated tests mock the Whisper boundary and do not require a running Whisper server or developer-managed Redis instance.
 
-Stop the local database when finished:
+Stop the local services when finished:
 
 ```bash
 docker compose down

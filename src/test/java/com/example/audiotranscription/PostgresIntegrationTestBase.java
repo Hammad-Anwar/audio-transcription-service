@@ -11,7 +11,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-abstract class PostgresIntegrationTestBase {
+public abstract class PostgresIntegrationTestBase {
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES =
